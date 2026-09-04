@@ -19,8 +19,10 @@
  */
 
 var SHEET_NAME = 'Karten';
-var TOKEN = 'Vokabelliste123';
-var COLUMNS = ['id', 'front', 'back', 'note', 'box', 'due', 'createdAt', 'updatedAt'];
+var TOKEN = 'Vokabeln';
+var COLUMNS = ['id', 'front', 'back', 'note', 'box', 'due', 'createdAt', 'updatedAt', 'favorite'];
+// Neue Zeile manuell im Sheet eintragen: nur Spalte B (front/Begriff) und
+// C (back/Übersetzung) ausfüllen. id, box, due etc. ergänzt das Script bzw. die App automatisch.
 
 function getSheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -48,24 +50,31 @@ function doGet(e) {
 
   var sheet = getSheet_();
   var values = sheet.getDataRange().getValues();
-  var headers = values.shift();
+  var headers = values[0];
   var tz = Session.getScriptTimeZone();
+  var idColIndex = headers.indexOf('id');        // 0-basiert, für Zugriff auf row[]
+  var frontColIndex = headers.indexOf('front');  // 0-basiert
 
-  var cards = values
-    .filter(function (row) { return row[0] !== '' && row[0] !== null; })
-    .map(function (row) {
-      var obj = {};
-      headers.forEach(function (h, i) {
-        var v = row[i];
-        if (v instanceof Date) {
-          v = (h === 'due')
-            ? Utilities.formatDate(v, tz, 'yyyy-MM-dd')
-            : v.getTime();
-        }
-        obj[h] = v;
-      });
-      return obj;
+  var cards = [];
+  for (var r = 1; r < values.length; r++) {
+    var row = values[r];
+    if (!row[frontColIndex]) continue; // Zeile ohne Begriff = leer, überspringen
+
+    if (!row[idColIndex]) {
+      row[idColIndex] = Utilities.getUuid();
+      sheet.getRange(r + 1, idColIndex + 1).setValue(row[idColIndex]); // fehlende ID direkt in der Tabelle nachtragen
+    }
+
+    var obj = {};
+    headers.forEach(function (h, i) {
+      var v = row[i];
+      if (v instanceof Date) {
+        v = (h === 'due') ? Utilities.formatDate(v, tz, 'yyyy-MM-dd') : v.getTime();
+      }
+      obj[h] = v;
     });
+    cards.push(obj);
+  }
 
   return jsonOutput_({ cards: cards });
 }

@@ -146,6 +146,10 @@
   .session-done p{font-size:13px; margin:0 0 20px;}
 
   /* ---- Karten (list) ---- */
+  .search-row{display:flex; gap:8px; margin-bottom:12px; align-items:stretch;}
+  .search-row .search-input{margin-bottom:0; flex:1;}
+  .fav-filter-btn{flex:none; width:44px; display:flex; align-items:center; justify-content:center; padding:0;}
+  .fav-filter-btn svg{width:18px; height:18px;}
   .search-input{
     width:100%; background:var(--bg-softer); border:1px solid var(--line); color:var(--white);
     border-radius:10px; padding:11px 14px; font-size:14px; margin-bottom:12px;
@@ -162,6 +166,9 @@
   .row-btn{background:none; border:none; color:var(--white-faint); padding:7px; border-radius:8px;}
   .row-btn svg{width:16px; height:16px; display:block;}
   .row-btn.danger{color:var(--red);}
+  .row-btn.active{color:var(--gold-soft);}
+  .fav-pill svg{width:15px; height:15px; display:block;}
+  .fav-pill{color:var(--gold-soft); display:flex;}
   .confirm-row{display:flex; align-items:center; gap:8px; padding:10px 4px; border-bottom:1px solid var(--line);}
   .confirm-row span{flex:1; font-size:13px; color:var(--white-dim);}
   .fab{
@@ -282,7 +289,9 @@
     plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
     trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></svg>',
     edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>',
-    close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>'
+    close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>',
+    starOutline: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 3l2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.2-5.4 3.2 1.3-6-4.6-4.1 6.1-.6z"/></svg>',
+    starFilled: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><path d="M12 3l2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.2-5.4 3.2 1.3-6-4.6-4.1 6.1-.6z"/></svg>'
   };
 
   var LEITNER_INTERVALS = [1, 2, 4, 8, 16]; // Tage pro Kasten 1..5
@@ -302,6 +311,7 @@
     flipped: false,
     sessionReviewed: 0,
     search: '',
+    filterFavoritesOnly: false,
     confirmDeleteId: null,
     modal: null,
     toastTimer: null
@@ -390,7 +400,7 @@
           state.cards.push({
             id: id, front: c.front, back: c.back, note: c.note || '',
             box: c.box && c.box>=1 && c.box<=5 ? c.box : 1,
-            due: c.due || todayISO(), createdAt: c.createdAt || Date.now()
+            due: c.due || todayISO(), createdAt: c.createdAt || Date.now(), favorite: !!c.favorite
           });
           added++;
         });
@@ -407,6 +417,26 @@
       }
     };
     reader.readAsText(file);
+  }
+
+  /* ---------- gemeinsame Merge-Logik für alle Import-Wege: bestehende Karte (gleicher Begriff) ---------- */
+  /* wird aktualisiert statt dupliziert, Kasten/Fälligkeit bleiben dabei unangetastet ---------- */
+  function mergeImportedPairs(pairs){
+    var added = 0, updated = 0;
+    pairs.forEach(function(p){
+      var existing = state.cards.find(function(c){
+        return c.front.trim().toLowerCase() === p.front.trim().toLowerCase();
+      });
+      if (existing){
+        if (existing.back !== p.back){ existing.back = p.back; updated++; }
+      } else {
+        state.cards.push({ id: uid(), front: p.front, back: p.back, note:'', box:1, due: todayISO(), createdAt: Date.now() });
+        added++;
+      }
+    });
+    saveCards();
+    buildStudyQueue();
+    return { added: added, updated: updated };
   }
 
   /* ---------- Cloud-Sync: Liste von einer öffentlichen URL abrufen ---------- */
@@ -427,21 +457,10 @@
           showToast('Keine Vokabeln in der Quelle gefunden.');
           return;
         }
-        var added = 0, updated = 0;
-        result.pairs.forEach(function(p){
-          var existing = state.cards.find(function(c){
-            return c.front.trim().toLowerCase() === p.front.trim().toLowerCase();
-          });
-          if (existing){
-            if (existing.back !== p.back){ existing.back = p.back; updated++; }
-          } else {
-            state.cards.push({ id: uid(), front: p.front, back: p.back, note:'', box:1, due: todayISO(), createdAt: Date.now() });
-            added++;
-          }
-        });
+        var stats = mergeImportedPairs(result.pairs);
         state.settings.lastSync = new Date().toISOString();
-        saveCards(); saveSettings(); buildStudyQueue();
-        showToast(added + ' neu, ' + updated + ' aktualisiert.');
+        saveSettings();
+        showToast(stats.added + ' neu, ' + stats.updated + ' aktualisiert.');
       })
       .catch(function(){
         showToast('Synchronisierung fehlgeschlagen. Adresse & Freigabe prüfen.');
@@ -490,7 +509,7 @@
             return {
               id: c.id || uid(), front: c.front || '', back: c.back || '', note: c.note || '',
               box: (c.box >= 1 && c.box <= 5) ? Number(c.box) : 1,
-              due: c.due || todayISO(), createdAt: c.createdAt || Date.now()
+              due: c.due || todayISO(), createdAt: c.createdAt || Date.now(), favorite: !!c.favorite
             };
           })
           .filter(function(c){ return c.front && c.back; });
@@ -512,7 +531,10 @@
       if (a.box !== b.box) return a.box - b.box;
       return a.due < b.due ? -1 : 1;
     });
-    state.studyQueue = due.map(function(c){ return c.id; });
+    // Favoriten ("öfter üben") kommen zusätzlich in jede Sitzung, auch wenn laut Kasten noch nicht fällig
+    var favoritesExtra = state.cards.filter(function(c){ return c.favorite && c.due > today; });
+    favoritesExtra.sort(function(a,b){ return a.box - b.box; });
+    state.studyQueue = due.concat(favoritesExtra).map(function(c){ return c.id; });
     state.queuePos = 0;
     state.flipped = false;
     state.sessionReviewed = 0;
@@ -552,9 +574,9 @@
   }
 
   /* ---------- CRUD ---------- */
-  function addCard(front, back, note){
+  function addCard(front, back, note, favorite){
     var today = todayISO();
-    state.cards.push({ id: uid(), front: front, back: back, note: note||'', box: 1, due: today, createdAt: Date.now() });
+    state.cards.push({ id: uid(), front: front, back: back, note: note||'', box: 1, due: today, createdAt: Date.now(), favorite: !!favorite });
     saveCards();
     buildStudyQueue();
   }
@@ -564,6 +586,14 @@
     Object.assign(c, fields);
     saveCards();
     buildStudyQueue();
+  }
+  function toggleFavorite(id){
+    var c = getCard(id);
+    if (!c) return;
+    c.favorite = !c.favorite;
+    saveCards();
+    buildStudyQueue();
+    renderAll();
   }
   function deleteCard(id){
     state.cards = state.cards.filter(function(c){ return c.id !== id; });
@@ -671,7 +701,10 @@
     var prog = el('<div class="study-progress"></div>');
     prog.innerHTML =
       '<span>' + (state.queuePos+1) + ' von ' + state.studyQueue.length + '</span>' +
-      '<span class="box-pill">Kasten ' + card.box + '</span>';
+      '<span style="display:flex;align-items:center;gap:7px;">' +
+        (card.favorite ? '<span class="fav-pill">' + ICONS.starFilled + '</span>' : '') +
+        '<span class="box-pill">Kasten ' + card.box + '</span>' +
+      '</span>';
     root.appendChild(prog);
 
     var wrap = el('<div class="flashcard' + (state.flipped?' flipped':'') + '"></div>');
@@ -725,10 +758,23 @@
       root.appendChild(emptyState('Noch keine Vokabeln.', 'Lege deine erste Karte an oder importiere eine Liste.'));
       return;
     }
+    var searchRow = el('<div class="search-row"></div>');
     var search = el('<input class="search-input" placeholder="Suchen …" type="text">');
     search.value = state.search;
     search.addEventListener('input', function(){ state.search = search.value; renderCardsListOnly(); });
-    root.appendChild(search);
+    var favFilterBtn = el('<button></button>');
+    function paintFavFilterBtn(){
+      favFilterBtn.className = state.filterFavoritesOnly ? 'btn btn-primary btn-sm fav-filter-btn' : 'btn btn-outline btn-sm fav-filter-btn';
+      favFilterBtn.innerHTML = state.filterFavoritesOnly ? ICONS.starFilled : ICONS.starOutline;
+    }
+    paintFavFilterBtn();
+    favFilterBtn.addEventListener('click', function(){
+      state.filterFavoritesOnly = !state.filterFavoritesOnly;
+      paintFavFilterBtn();
+      renderCardsListOnly();
+    });
+    searchRow.appendChild(search); searchRow.appendChild(favFilterBtn);
+    root.appendChild(searchRow);
 
     var listWrap = el('<div id="card-list"></div>');
     root.appendChild(listWrap);
@@ -744,11 +790,12 @@
     listWrap.innerHTML = '';
     var q = state.search.trim().toLowerCase();
     var items = state.cards.filter(function(c){
+      if (state.filterFavoritesOnly && !c.favorite) return false;
       if (!q) return true;
       return c.front.toLowerCase().indexOf(q) > -1 || c.back.toLowerCase().indexOf(q) > -1;
     }).sort(function(a,b){ return b.createdAt - a.createdAt; });
 
-    listWrap.appendChild(el('<div class="count-line">' + items.length + ' Karte' + (items.length===1?'':'n') + '</div>'));
+    listWrap.appendChild(el('<div class="count-line">' + items.length + ' Karte' + (items.length===1?'':'n') + (state.filterFavoritesOnly ? ' · nur Favoriten' : '') + '</div>'));
 
     items.forEach(function(card){
       if (state.confirmDeleteId === card.id){
@@ -768,11 +815,15 @@
       var txt = el('<div class="txt"></div>');
       txt.innerHTML = '<div class="front">' + escapeHtml(card.front) + '</div><div class="back">' + escapeHtml(card.back) + '</div>';
       var actions = el('<div class="actions"></div>');
+      var favBtn = el('<button class="row-btn"></button>');
+      favBtn.innerHTML = card.favorite ? ICONS.starFilled : ICONS.starOutline;
+      if (card.favorite) favBtn.classList.add('active');
+      favBtn.addEventListener('click', function(){ toggleFavorite(card.id); });
       var editBtn = el('<button class="row-btn"></button>'); editBtn.innerHTML = ICONS.edit;
       var delBtn = el('<button class="row-btn danger"></button>'); delBtn.innerHTML = ICONS.trash;
       editBtn.addEventListener('click', function(){ openCardModal(card.id); });
       delBtn.addEventListener('click', function(){ state.confirmDeleteId = card.id; renderAll(); });
-      actions.appendChild(editBtn); actions.appendChild(delBtn);
+      actions.appendChild(favBtn); actions.appendChild(editBtn); actions.appendChild(delBtn);
       row.appendChild(dot); row.appendChild(txt); row.appendChild(actions);
       row.addEventListener('click', function(e){
         if (e.target.closest('.actions')) return;
@@ -973,6 +1024,21 @@
     sheet.appendChild(fBack.wrap);
     sheet.appendChild(fNote);
 
+    var favField = document.createElement('div');
+    favField.className = 'field';
+    var favState = editing ? !!editing.favorite : false;
+    var favToggle = el('<button class="btn btn-outline btn-block" style="justify-content:flex-start;gap:9px;"></button>');
+    function paintFavToggle(){
+      favToggle.className = favState ? 'btn btn-primary btn-block' : 'btn btn-outline btn-block';
+      favToggle.style.justifyContent = 'flex-start';
+      favToggle.style.gap = '9px';
+      favToggle.innerHTML = (favState ? ICONS.starFilled : ICONS.starOutline) + '<span>Öfter üben – in jeder Sitzung zeigen</span>';
+    }
+    paintFavToggle();
+    favToggle.addEventListener('click', function(){ favState = !favState; paintFavToggle(); });
+    favField.appendChild(favToggle);
+    sheet.appendChild(favField);
+
     var actions = el('<div class="modal-actions"></div>');
     var cancel = el('<button class="btn btn-outline">Abbrechen</button>');
     var save = el('<button class="btn btn-primary">Speichern</button>');
@@ -982,8 +1048,8 @@
       var back = fBack.input.value.trim();
       var note = fNote.querySelector('textarea').value.trim();
       if (!front || !back){ showToast('Bitte beide Felder ausfüllen.'); return; }
-      if (editing) updateCard(editing.id, { front: front, back: back, note: note });
-      else addCard(front, back, note);
+      if (editing) updateCard(editing.id, { front: front, back: back, note: note, favorite: favState });
+      else addCard(front, back, note, favState);
       closeModal();
       showToast(editing ? 'Karte aktualisiert.' : 'Karte hinzugefügt.');
     });
@@ -1073,7 +1139,8 @@
   }
 
   function renderImportPreviewModal(sheet, pairs, skipped){
-    sheet.innerHTML = '<h3>' + pairs.length + ' Karte' + (pairs.length===1?'':'n') + ' gefunden</h3>';
+    sheet.innerHTML = '<h3>' + pairs.length + ' Karte' + (pairs.length===1?'':'n') + ' gefunden</h3>' +
+      '<p style="font-size:12px;color:var(--white-faint);margin:-8px 0 12px;">Begriffe, die es schon gibt, werden nur aktualisiert – Kasten & Fälligkeit bleiben erhalten.</p>';
     var list = document.createElement('div');
     pairs.forEach(function(p, idx){
       var row = el('<div class="preview-row"></div>');
@@ -1099,9 +1166,9 @@
     var confirm = el('<button class="btn btn-primary">' + pairs.length + ' importieren</button>');
     cancel.addEventListener('click', closeModal);
     confirm.addEventListener('click', function(){
-      pairs.forEach(function(p){ addCard(p.front, p.back, ''); });
+      var stats = mergeImportedPairs(pairs);
       closeModal();
-      showToast(pairs.length + ' Karte' + (pairs.length===1?'':'n') + ' importiert.');
+      showToast(stats.added + ' neu, ' + stats.updated + ' aktualisiert.');
       state.view = 'cards';
       renderAll();
     });
