@@ -19,7 +19,7 @@
  */
 
 var SHEET_NAME = 'Karten';
-var TOKEN = 'HIER-EIGENEN-CODE-EINTRAGEN';
+var TOKEN = 'Vokabelliste123';
 var COLUMNS = ['id', 'front', 'back', 'note', 'box', 'due', 'createdAt', 'updatedAt'];
 
 function getSheet_() {
