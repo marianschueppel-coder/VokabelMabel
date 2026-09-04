@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Vokabeln</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Vokabeln">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#24322B">
+<meta name="description" content="Vokabeln lernen mit dem Leitner-Karteikasten-System">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#24322B; --bg-soft:#2C3C33; --bg-softer:#33453A;
+    --card:#EDE6D6; --card-line:rgba(29,43,58,.13);
+    --ink:#1D2B3A; --ink-soft:#5B6B67;
+    --white:#FBF9F3; --white-dim:rgba(251,249,243,.62); --white-faint:rgba(251,249,243,.38);
+    --red:#B23A2E; --red-dim:rgba(178,58,46,.18);
+    --gold:#B08D3D; --gold-soft:#E3D3A0; --gold-dim:rgba(176,141,61,.2);
+    --line:rgba(251,249,243,.1);
+    --shadow:0 14px 30px rgba(0,0,0,.38);
+    --radius:12px;
+    --font-ui:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+    --font-card:'Special Elite','Courier New',monospace;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; background:var(--bg); overscroll-behavior-y:none;}
+  body{
+    font-family:var(--font-ui); color:var(--white);
+    -webkit-font-smoothing:antialiased;
+  }
+  button, input, textarea{font-family:inherit;}
+  #app{
+    display:flex; flex-direction:column; min-height:100dvh;
+    max-width:480px; margin:0 auto; position:relative;
+    background:radial-gradient(ellipse at top, var(--bg-soft), var(--bg) 65%);
+  }
+  .topbar{
+    padding: calc(env(safe-area-inset-top,0px) + 16px) 20px 10px;
+    display:flex; align-items:flex-end; justify-content:space-between;
+  }
+  .topbar .brand{display:flex; flex-direction:column; gap:2px;}
+  .topbar h1{
+    font-family:var(--font-card); font-size:19px; font-weight:400; margin:0;
+    letter-spacing:.3px; color:var(--white);
+  }
+  .topbar .sub{font-size:11.5px; color:var(--white-faint);}
+  .icon-btn{
+    background:none; border:none; color:var(--white-dim); padding:8px;
+    display:flex; align-items:center; justify-content:center; border-radius:10px;
+  }
+  .icon-btn:active{background:var(--line); color:var(--white);}
+  .icon-btn svg{width:20px; height:20px;}
+  main#view{
+    flex:1; padding:6px 20px calc(100px + env(safe-area-inset-bottom,0px));
+    overflow-y:auto; -webkit-overflow-scrolling:touch;
+  }
+  nav.bottom-nav{
+    position:fixed; left:50%; transform:translateX(-50%); bottom:0;
+    width:100%; max-width:480px; display:flex;
+    background:rgba(36,50,43,.92); backdrop-filter:blur(14px);
+    border-top:1px solid var(--line);
+    padding:9px 4px calc(env(safe-area-inset-bottom,0px) + 8px);
+    z-index:20;
+  }
+  nav.bottom-nav button{
+    flex:1; background:none; border:none; color:var(--white-faint);
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    font-size:10.5px; padding:5px 2px; border-radius:10px; position:relative;
+  }
+  nav.bottom-nav button svg{width:21px; height:21px;}
+  nav.bottom-nav button.active{color:var(--gold-soft);}
+  nav.bottom-nav .badge{
+    position:absolute; top:-1px; right:22%; background:var(--red); color:var(--white);
+    font-size:9px; font-weight:600; border-radius:8px; min-width:15px; height:15px;
+    display:flex; align-items:center; justify-content:center; padding:0 3px;
+  }
+
+  /* ---- generic ---- */
+  h2.view-title{font-size:13px; text-transform:none; color:var(--white-dim); font-weight:600; margin:14px 0 12px; letter-spacing:.2px;}
+  .empty-state{
+    margin-top:14vh; text-align:center; color:var(--white-dim);
+    display:flex; flex-direction:column; align-items:center; gap:14px;
+  }
+  .empty-state .glyph{
+    width:56px; height:56px; border:1.5px dashed var(--white-faint); border-radius:14px;
+    display:flex; align-items:center; justify-content:center; color:var(--white-faint);
+  }
+  .empty-state p{font-size:13.5px; line-height:1.5; max-width:280px; margin:0;}
+  .empty-actions{display:flex; gap:10px; margin-top:4px;}
+
+  .btn{
+    font-size:14px; font-weight:600; border:none; border-radius:11px;
+    padding:13px 18px; display:flex; align-items:center; justify-content:center; gap:7px;
+  }
+  .btn:active{transform:scale(.97);}
+  .btn-primary{background:var(--gold); color:#241d0c;}
+  .btn-danger{background:var(--red); color:var(--white);}
+  .btn-ghost{background:var(--bg-softer); color:var(--white);}
+  .btn-outline{background:none; border:1px solid var(--line); color:var(--white-dim);}
+  .btn-block{width:100%;}
+  .btn-sm{padding:9px 14px; font-size:12.5px;}
+
+  /* ---- Learn view ---- */
+  .study-progress{
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:12px; color:var(--white-faint); margin:8px 0 16px;
+  }
+  .study-progress .box-pill{
+    font-size:10.5px; background:var(--bg-softer); color:var(--gold-soft);
+    padding:3px 9px; border-radius:20px; font-weight:600;
+  }
+  .flashcard{width:100%; aspect-ratio:4/5; max-height:430px; perspective:1500px; margin-bottom:20px;}
+  .flashcard-inner{
+    position:relative; width:100%; height:100%; cursor:pointer;
+    transition:transform .55s cubic-bezier(.4,.15,.2,1); transform-style:preserve-3d;
+  }
+  .flashcard.flipped .flashcard-inner{transform:rotateY(180deg);}
+  .flashcard-face{
+    position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden;
+    border-radius:10px; background:var(--card); box-shadow:var(--shadow);
+    padding:22px 20px; display:flex; flex-direction:column;
+    background-image:repeating-linear-gradient(var(--card) 0 33px, var(--card-line) 33px 34px);
+    background-position:0 74px;
+  }
+  .flashcard-face.back{transform:rotateY(180deg);}
+  .face-top{display:flex; justify-content:space-between; align-items:flex-start;}
+  .face-tag{font-size:10px; color:var(--ink-soft); font-weight:600; letter-spacing:.3px;}
+  .box-dot{width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:5px; vertical-align:1px;}
+  .face-word-wrap{flex:1; display:flex; align-items:center; justify-content:center; text-align:center; padding:10px 4px;}
+  .face-word{font-family:var(--font-card); color:var(--ink); font-size:clamp(22px,7vw,30px); line-height:1.35; word-break:break-word;}
+  .face-hint{text-align:center; font-size:11px; color:var(--ink-soft); padding-bottom:2px;}
+  .face-note{font-size:12px; color:var(--ink-soft); text-align:center; margin-top:6px; font-style:italic;}
+  .answer-row{display:flex; gap:12px;}
+  .answer-row .btn{flex:1;}
+  .session-done{text-align:center; margin-top:12vh; color:var(--white-dim);}
+  .session-done .big{font-family:var(--font-card); font-size:24px; color:var(--white); margin-bottom:8px;}
+  .session-done p{font-size:13px; margin:0 0 20px;}
+
+  /* ---- Karten (list) ---- */
+  .search-input{
+    width:100%; background:var(--bg-softer); border:1px solid var(--line); color:var(--white);
+    border-radius:10px; padding:11px 14px; font-size:14px; margin-bottom:12px;
+  }
+  .search-input::placeholder{color:var(--white-faint);}
+  .card-row{
+    display:flex; align-items:center; gap:10px; padding:12px 4px; border-bottom:1px solid var(--line);
+  }
+  .card-row .dot{width:7px; height:7px; border-radius:50%; flex:none;}
+  .card-row .txt{flex:1; min-width:0;}
+  .card-row .front{font-size:14px; color:var(--white); font-weight:500;}
+  .card-row .back{font-size:12px; color:var(--white-faint); margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .card-row .actions{display:flex; gap:2px; flex:none;}
+  .row-btn{background:none; border:none; color:var(--white-faint); padding:7px; border-radius:8px;}
+  .row-btn svg{width:16px; height:16px; display:block;}
+  .row-btn.danger{color:var(--red);}
+  .confirm-row{display:flex; align-items:center; gap:8px; padding:10px 4px; border-bottom:1px solid var(--line);}
+  .confirm-row span{flex:1; font-size:13px; color:var(--white-dim);}
+  .fab{
+    position:fixed; right:calc(50% - 240px + 20px); bottom:calc(96px + env(safe-area-inset-bottom,0px));
+    background:var(--gold); color:#241d0c; width:52px; height:52px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow); border:none; z-index:15;
+  }
+  @media (max-width:520px){ .fab{ right:20px; } }
+  .fab svg{width:24px; height:24px;}
+  .count-line{font-size:12px; color:var(--white-faint); margin-bottom:10px;}
+
+  /* ---- Import ---- */
+  .import-textarea{
+    width:100%; min-height:150px; background:var(--bg-softer); border:1px solid var(--line);
+    color:var(--white); border-radius:10px; padding:12px 14px; font-size:13.5px; resize:vertical; line-height:1.5;
+  }
+  .hint-box{
+    background:var(--bg-softer); border-radius:10px; padding:12px 14px; font-size:12px;
+    color:var(--white-faint); line-height:1.6; margin-top:10px;
+  }
+  .hint-box b{color:var(--white-dim);}
+  .preview-row{display:flex; align-items:center; gap:8px; padding:9px 4px; border-bottom:1px solid var(--line); font-size:13px;}
+  .preview-row .p-front{flex:1; color:var(--white);}
+  .preview-row .arrow{color:var(--white-faint);}
+  .preview-row .p-back{flex:1; color:var(--white-dim);}
+  .preview-row button{background:none; border:none; color:var(--white-faint); padding:5px;}
+  .preview-row button svg{width:15px; height:15px;}
+  .skip-note{font-size:11.5px; color:var(--white-faint); margin-top:8px;}
+
+  /* ---- Overview ---- */
+  .stat-grid{display:flex; gap:10px; margin-bottom:18px;}
+  .stat-card{flex:1; background:var(--bg-softer); border-radius:12px; padding:14px 12px; text-align:center;}
+  .stat-card .num{font-family:var(--font-card); font-size:22px; color:var(--gold-soft);}
+  .stat-card .lbl{font-size:10.5px; color:var(--white-faint); margin-top:3px;}
+  .box-row{display:flex; align-items:center; gap:12px; padding:11px 2px; border-bottom:1px solid var(--line);}
+  .box-stack{width:34px; height:30px; position:relative; flex:none;}
+  .box-stack i{
+    position:absolute; left:0; width:34px; height:22px; border-radius:3px; background:var(--card);
+    box-shadow:0 2px 4px rgba(0,0,0,.3);
+  }
+  .box-info{flex:1;}
+  .box-info .name{font-size:13.5px; font-weight:600; color:var(--white);}
+  .box-info .interval{font-size:11px; color:var(--white-faint);}
+  .box-count{font-family:var(--font-card); font-size:18px; color:var(--gold-soft); min-width:26px; text-align:right;}
+  .box-count.due{color:var(--red);}
+  .backup-row{display:flex; gap:10px; margin-top:4px;}
+  .backup-row .btn{flex:1;}
+
+  /* ---- Modal ---- */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(15,20,17,.6); backdrop-filter:blur(2px);
+    display:flex; align-items:flex-end; z-index:40;
+  }
+  .modal-sheet{
+    width:100%; max-width:480px; margin:0 auto; background:var(--bg-soft);
+    border-radius:18px 18px 0 0; padding:18px 20px calc(24px + env(safe-area-inset-bottom,0px));
+    max-height:88vh; overflow-y:auto;
+  }
+  .modal-sheet h3{font-size:15px; margin:2px 0 16px; color:var(--white); font-family:var(--font-card); font-weight:400;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:11.5px; color:var(--white-faint); margin-bottom:6px; font-weight:600;}
+  .field input, .field textarea{
+    width:100%; background:var(--bg-softer); border:1px solid var(--line); color:var(--white);
+    border-radius:10px; padding:11px 13px; font-size:14.5px;
+  }
+  .field textarea{min-height:70px; resize:vertical;}
+  .modal-actions{display:flex; gap:10px; margin-top:6px;}
+  .modal-actions .btn{flex:1;}
+  .seg{display:flex; background:var(--bg-softer); border-radius:10px; padding:3px; gap:3px;}
+  .seg button{flex:1; background:none; border:none; color:var(--white-faint); font-size:12px; padding:8px 4px; border-radius:8px;}
+  .seg button.active{background:var(--gold); color:#241d0c; font-weight:600;}
+
+  .toast{
+    position:fixed; left:50%; transform:translateX(-50%); bottom:calc(96px + env(safe-area-inset-bottom,0px));
+    background:var(--white); color:var(--ink); font-size:13px; font-weight:500;
+    padding:10px 18px; border-radius:24px; box-shadow:var(--shadow); z-index:60;
+    opacity:0; pointer-events:none; transition:opacity .25s, transform .25s; max-width:82%; text-align:center;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(-4px);}
+  .loading-note{margin-top:30vh; text-align:center; color:var(--white-faint); font-size:13px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <h1>Vokabeln</h1>
+      <div class="sub" id="topbar-sub">Karteikasten</div>
+    </div>
+    <button class="icon-btn" id="settings-btn" aria-label="Einstellungen"></button>
+  </header>
+
+  <main id="view"></main>
+
+  <button class="fab" id="fab-add" style="display:none;" aria-label="Karte hinzufügen"></button>
+
+  <nav class="bottom-nav">
+    <button data-view="learn"></button>
+    <button data-view="cards"></button>
+    <button data-view="import"></button>
+    <button data-view="overview"></button>
+  </nav>
+</div>
+<div id="modal-root"></div>
+<div class="toast" id="toast"></div>
+<input type="file" id="backup-file-input" accept="application/json" style="display:none;">
+
+<script>
+(function(){
+  "use strict";
+
+  var ICONS = {
+    learn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="13" height="16" rx="2" transform="rotate(-8 10.5 13)"/><rect x="7" y="3" width="13" height="16" rx="2" fill="var(--bg-soft)"/></svg>',
+    cards: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="9" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1.2"/><circle cx="4" cy="12" r="1.2"/><circle cx="4" cy="18" r="1.2"/></svg>',
+    import: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>',
+    overview: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="20" x2="5" y2="11"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="19" y1="20" x2="19" y2="14"/></svg>',
+    settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.97 7.97 0 000-2l1.9-1.5-2-3.4-2.2 1a8 8 0 00-1.7-1L15 4h-6l-.4 2.1a8 8 0 00-1.7 1l-2.2-1-2 3.4L4.6 11a7.97 7.97 0 000 2l-1.9 1.5 2 3.4 2.2-1a8 8 0 001.7 1L9 20h6l.4-2.1a8 8 0 001.7-1l2.2 1 2-3.4z"/></svg>',
+    plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></svg>',
+    edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>',
+    close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>'
+  };
+
+  var LEITNER_INTERVALS = [1, 2, 4, 8, 16]; // Tage pro Kasten 1..5
+  var BOX_COLORS = ['#B23A2E', '#C06A3D', '#B08D3D', '#7C9A5C', '#4C7A6B'];
+  var CARDS_KEY = 'vokabeln.cards';
+  var SETTINGS_KEY = 'vokabeln.settings';
+
+  var state = {
+    loaded: false,
+    view: 'learn',
+    cards: [],
+    settings: { frontLabel: 'Begriff', backLabel: 'Übersetzung', direction: 'front-back', syncUrl: '', lastSync: null, sheetsUrl: '', sheetsToken: '', lastSheetsSync: null },
+    syncing: false,
+    sheetsBusy: false,
+    studyQueue: [],
+    queuePos: 0,
+    flipped: false,
+    sessionReviewed: 0,
+    search: '',
+    confirmDeleteId: null,
+    modal: null,
+    toastTimer: null
+  };
+
+  /* ---------- utils ---------- */
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+  function pad(n){ return n < 10 ? '0'+n : ''+n; }
+  function todayISO(){
+    var d = new Date();
+    return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  }
+  function addDays(iso, days){
+    var d = new Date(iso+'T00:00:00');
+    d.setDate(d.getDate()+days);
+    return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  }
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function showToast(msg){
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    if (state.toastTimer) clearTimeout(state.toastTimer);
+    state.toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 2600);
+  }
+  function getCard(id){
+    for (var i=0;i<state.cards.length;i++) if (state.cards[i].id===id) return state.cards[i];
+    return null;
+  }
+
+  /* ---------- storage (localStorage – die App läuft eigenständig, ohne Claude) ---------- */
+  async function loadData(){
+    try {
+      var raw = localStorage.getItem(CARDS_KEY);
+      state.cards = raw ? JSON.parse(raw) : [];
+    } catch(e){ state.cards = []; }
+    try {
+      var raw2 = localStorage.getItem(SETTINGS_KEY);
+      if (raw2) state.settings = Object.assign({}, state.settings, JSON.parse(raw2));
+    } catch(e){ /* Standardwerte behalten */ }
+    state.loaded = true;
+    buildStudyQueue();
+    renderAll();
+  }
+  async function saveCards(){
+    try { localStorage.setItem(CARDS_KEY, JSON.stringify(state.cards)); }
+    catch(e){ showToast('Speichern fehlgeschlagen (Speicher evtl. voll).'); }
+  }
+  async function saveSettings(){
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings)); }
+    catch(e){ showToast('Einstellungen konnten nicht gespeichert werden.'); }
+  }
+
+  /* ---------- Backup: Export / Import ---------- */
+  function exportBackup(){
+    var data = { app:'vokabeln', version:1, exportedAt: new Date().toISOString(), cards: state.cards, settings: state.settings };
+    var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'vokabeln-backup-' + todayISO() + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    showToast('Sicherung wird heruntergeladen.');
+  }
+  function importBackupFile(file){
+    var reader = new FileReader();
+    reader.onload = function(){
+      try {
+        var data = JSON.parse(reader.result);
+        var incoming = Array.isArray(data.cards) ? data.cards : (Array.isArray(data) ? data : null);
+        if (!incoming){ showToast('Diese Datei enthält keine gültige Sicherung.'); return; }
+        var existingIds = {};
+        state.cards.forEach(function(c){ existingIds[c.id] = true; });
+        var added = 0;
+        incoming.forEach(function(c){
+          if (!c || !c.front || !c.back) return;
+          var id = (c.id && !existingIds[c.id]) ? c.id : uid();
+          existingIds[id] = true;
+          state.cards.push({
+            id: id, front: c.front, back: c.back, note: c.note || '',
+            box: c.box && c.box>=1 && c.box<=5 ? c.box : 1,
+            due: c.due || todayISO(), createdAt: c.createdAt || Date.now()
+          });
+          added++;
+        });
+        if (data.settings && typeof data.settings === 'object'){
+          state.settings = Object.assign({}, state.settings, data.settings);
+          saveSettings();
+        }
+        saveCards();
+        buildStudyQueue();
+        renderAll();
+        showToast(added + ' Karte' + (added===1?'':'n') + ' aus Sicherung übernommen.');
+      } catch(e){
+        showToast('Datei konnte nicht gelesen werden.');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  /* ---------- Cloud-Sync: Liste von einer öffentlichen URL abrufen ---------- */
+  function syncFromUrl(){
+    var url = (state.settings.syncUrl || '').trim();
+    if (!url){ showToast('Bitte zuerst eine Adresse eintragen.'); return; }
+    if (state.syncing) return;
+    state.syncing = true;
+    renderAll();
+    fetch(url, { cache: 'no-store' })
+      .then(function(res){
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.text();
+      })
+      .then(function(text){
+        var result = parseImportText(text);
+        if (result.pairs.length === 0){
+          showToast('Keine Vokabeln in der Quelle gefunden.');
+          return;
+        }
+        var added = 0, updated = 0;
+        result.pairs.forEach(function(p){
+          var existing = state.cards.find(function(c){
+            return c.front.trim().toLowerCase() === p.front.trim().toLowerCase();
+          });
+          if (existing){
+            if (existing.back !== p.back){ existing.back = p.back; updated++; }
+          } else {
+            state.cards.push({ id: uid(), front: p.front, back: p.back, note:'', box:1, due: todayISO(), createdAt: Date.now() });
+            added++;
+          }
+        });
+        state.settings.lastSync = new Date().toISOString();
+        saveCards(); saveSettings(); buildStudyQueue();
+        showToast(added + ' neu, ' + updated + ' aktualisiert.');
+      })
+      .catch(function(){
+        showToast('Synchronisierung fehlgeschlagen. Adresse & Freigabe prüfen.');
+      })
+      .finally(function(){
+        state.syncing = false;
+        renderAll();
+      });
+  }
+
+  /* ---------- Google Sheets Backup (Web-App-Anbindung, inkl. Kastenstand) ---------- */
+  function sheetsPush(){
+    var url = (state.settings.sheetsUrl || '').trim();
+    if (!url){ showToast('Bitte zuerst die Web-App-Adresse eintragen.'); return; }
+    if (state.sheetsBusy) return;
+    state.sheetsBusy = true;
+    renderAll();
+    var payload = { token: state.settings.sheetsToken || '', cards: state.cards };
+    fetch(url, { method: 'POST', body: JSON.stringify(payload) })
+      .then(function(res){ if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+      .then(function(data){
+        if (data && data.error){ showToast('Fehler: ' + data.error); return; }
+        state.settings.lastSheetsSync = new Date().toISOString();
+        saveSettings();
+        showToast('In Google Sheets gesichert.');
+      })
+      .catch(function(){ showToast('Sichern fehlgeschlagen. Adresse & Deployment prüfen.'); })
+      .finally(function(){ state.sheetsBusy = false; renderAll(); });
+  }
+
+  function sheetsPull(){
+    var url = (state.settings.sheetsUrl || '').trim();
+    if (!url){ showToast('Bitte zuerst die Web-App-Adresse eintragen.'); return; }
+    if (state.sheetsBusy) return;
+    state.sheetsBusy = true;
+    renderAll();
+    var sep = url.indexOf('?') > -1 ? '&' : '?';
+    var getUrl = url + sep + 'token=' + encodeURIComponent(state.settings.sheetsToken || '');
+    fetch(getUrl, { cache: 'no-store' })
+      .then(function(res){ if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+      .then(function(data){
+        if (data && data.error){ showToast('Fehler: ' + data.error); return; }
+        var cloudCards = Array.isArray(data.cards) ? data.cards : [];
+        state.cards = cloudCards
+          .map(function(c){
+            return {
+              id: c.id || uid(), front: c.front || '', back: c.back || '', note: c.note || '',
+              box: (c.box >= 1 && c.box <= 5) ? Number(c.box) : 1,
+              due: c.due || todayISO(), createdAt: c.createdAt || Date.now()
+            };
+          })
+          .filter(function(c){ return c.front && c.back; });
+        saveCards();
+        buildStudyQueue();
+        state.settings.lastSheetsSync = new Date().toISOString();
+        saveSettings();
+        showToast(state.cards.length + ' Karte' + (state.cards.length===1?'':'n') + ' aus Google Sheets geladen.');
+      })
+      .catch(function(){ showToast('Laden fehlgeschlagen. Adresse & Deployment prüfen.'); })
+      .finally(function(){ state.sheetsBusy = false; renderAll(); });
+  }
+
+  /* ---------- study queue / leitner ---------- */
+  function buildStudyQueue(){
+    var today = todayISO();
+    var due = state.cards.filter(function(c){ return c.due <= today; });
+    due.sort(function(a,b){
+      if (a.box !== b.box) return a.box - b.box;
+      return a.due < b.due ? -1 : 1;
+    });
+    state.studyQueue = due.map(function(c){ return c.id; });
+    state.queuePos = 0;
+    state.flipped = false;
+    state.sessionReviewed = 0;
+  }
+  function currentStudyCard(){
+    if (state.queuePos >= state.studyQueue.length) return null;
+    return getCard(state.studyQueue[state.queuePos]);
+  }
+  function askDirectionFor(card){
+    var d = state.settings.direction;
+    if (d === 'back-front') return false;
+    if (d === 'mixed'){
+      if (card._mixDir === undefined) card._mixDir = Math.random() < 0.5;
+      return card._mixDir;
+    }
+    return true;
+  }
+  function answerCard(correct){
+    var card = currentStudyCard();
+    if (!card) return;
+    var today = todayISO();
+    if (correct){
+      card.box = Math.min(5, card.box + 1);
+      card.due = addDays(today, LEITNER_INTERVALS[card.box-1]);
+      state.studyQueue.splice(state.queuePos, 1);
+    } else {
+      card.box = 1;
+      card.due = today;
+      state.studyQueue.splice(state.queuePos, 1);
+      var insertAt = Math.min(state.studyQueue.length, state.queuePos + 3);
+      state.studyQueue.splice(insertAt, 0, card.id);
+    }
+    state.sessionReviewed++;
+    state.flipped = false;
+    saveCards();
+    renderAll();
+  }
+
+  /* ---------- CRUD ---------- */
+  function addCard(front, back, note){
+    var today = todayISO();
+    state.cards.push({ id: uid(), front: front, back: back, note: note||'', box: 1, due: today, createdAt: Date.now() });
+    saveCards();
+    buildStudyQueue();
+  }
+  function updateCard(id, fields){
+    var c = getCard(id);
+    if (!c) return;
+    Object.assign(c, fields);
+    saveCards();
+    buildStudyQueue();
+  }
+  function deleteCard(id){
+    state.cards = state.cards.filter(function(c){ return c.id !== id; });
+    saveCards();
+    buildStudyQueue();
+  }
+
+  /* ---------- import parsing ---------- */
+  function parseImportText(text){
+    var lines = text.split(/\r?\n/);
+    var seps = ['\t', ' - ', ' – ', ' — ', ' = ', ' : ', ':', ';', ','];
+    var out = []; var skipped = 0;
+    lines.forEach(function(raw){
+      var line = raw.trim();
+      if (!line) return;
+      var front=null, back=null;
+      for (var i=0;i<seps.length;i++){
+        var idx = line.indexOf(seps[i]);
+        if (idx > 0){
+          front = line.slice(0, idx).trim();
+          back = line.slice(idx + seps[i].length).trim();
+          break;
+        }
+      }
+      if (front && back) out.push({front: front, back: back});
+      else skipped++;
+    });
+    return { pairs: out, skipped: skipped };
+  }
+
+  /* ---------- rendering ---------- */
+  function el(html){
+    var t = document.createElement('template');
+    t.innerHTML = html.trim();
+    return t.content.firstElementChild;
+  }
+
+  function renderAll(){
+    document.getElementById('settings-btn').innerHTML = ICONS.settings;
+    var nav = document.querySelector('nav.bottom-nav');
+    var navItems = [
+      {v:'learn', label:'Lernen', icon:ICONS.learn},
+      {v:'cards', label:'Karten', icon:ICONS.cards},
+      {v:'import', label:'Import', icon:ICONS.import},
+      {v:'overview', label:'Übersicht', icon:ICONS.overview}
+    ];
+    var dueCount = state.studyQueue.length;
+    nav.innerHTML = '';
+    navItems.forEach(function(item){
+      var btn = document.createElement('button');
+      btn.className = state.view === item.v ? 'active' : '';
+      var badge = (item.v === 'learn' && dueCount > 0) ? '<span class="badge">'+dueCount+'</span>' : '';
+      btn.innerHTML = item.icon + badge + '<span>'+item.label+'</span>';
+      btn.addEventListener('click', function(){ state.view = item.v; state.confirmDeleteId=null; renderAll(); });
+      nav.appendChild(btn);
+    });
+
+    var sub = document.getElementById('topbar-sub');
+    sub.textContent = state.cards.length + ' Karte' + (state.cards.length===1?'':'n') + ' · ' + dueCount + ' heute fällig';
+
+    var fab = document.getElementById('fab-add');
+    fab.style.display = state.view === 'cards' ? 'flex' : 'none';
+    fab.innerHTML = ICONS.plus;
+
+    var root = document.getElementById('view');
+    root.innerHTML = '';
+    if (!state.loaded){
+      root.appendChild(el('<div class="loading-note">Karten werden geladen …</div>'));
+    } else if (state.view === 'learn') renderLearn(root);
+    else if (state.view === 'cards') renderCards(root);
+    else if (state.view === 'import') renderImport(root);
+    else if (state.view === 'overview') renderOverview(root);
+
+    renderModal();
+  }
+
+  function renderLearn(root){
+    if (state.cards.length === 0){
+      root.appendChild(emptyState(
+        'Noch keine Vokabeln.',
+        'Lege Karten manuell an oder importiere eine Liste, die du z. B. aus Google Notizen kopiert hast.'
+      ));
+      return;
+    }
+    var card = currentStudyCard();
+    if (!card){
+      var done = el('<div class="session-done"></div>');
+      done.innerHTML =
+        '<div class="big">Für heute geschafft</div>' +
+        '<p>' + state.sessionReviewed + ' Karte' + (state.sessionReviewed===1?'':'n') + ' wiederholt. Neue Karten werden fällig, sobald ihr Kasten dran ist.</p>';
+      var btns = el('<div class="empty-actions"></div>');
+      var toCards = el('<button class="btn btn-ghost">Karten verwalten</button>');
+      toCards.addEventListener('click', function(){ state.view='cards'; renderAll(); });
+      btns.appendChild(toCards);
+      done.appendChild(btns);
+      root.appendChild(done);
+      return;
+    }
+    var askFront = askDirectionFor(card);
+    var qText = askFront ? card.front : card.back;
+    var aText = askFront ? card.back : card.front;
+    var qLabel = askFront ? state.settings.frontLabel : state.settings.backLabel;
+    var aLabel = askFront ? state.settings.backLabel : state.settings.frontLabel;
+
+    var prog = el('<div class="study-progress"></div>');
+    prog.innerHTML =
+      '<span>' + (state.queuePos+1) + ' von ' + state.studyQueue.length + '</span>' +
+      '<span class="box-pill">Kasten ' + card.box + '</span>';
+    root.appendChild(prog);
+
+    var wrap = el('<div class="flashcard' + (state.flipped?' flipped':'') + '"></div>');
+    var inner = el('<div class="flashcard-inner"></div>');
+
+    var front = el('<div class="flashcard-face"></div>');
+    front.innerHTML =
+      '<div class="face-top"><span class="face-tag">' + escapeHtml(qLabel) + '</span></div>' +
+      '<div class="face-word-wrap"><div class="face-word">' + escapeHtml(qText) + '</div></div>' +
+      '<div class="face-hint">Tippen zum Umdrehen</div>';
+
+    var back = el('<div class="flashcard-face back"></div>');
+    back.innerHTML =
+      '<div class="face-top"><span class="face-tag">' + escapeHtml(aLabel) + '</span></div>' +
+      '<div class="face-word-wrap"><div class="face-word">' + escapeHtml(aText) + '</div></div>' +
+      (card.note ? '<div class="face-note">' + escapeHtml(card.note) + '</div>' : '<div class="face-hint">&nbsp;</div>');
+
+    inner.appendChild(front); inner.appendChild(back);
+    wrap.appendChild(inner);
+    wrap.addEventListener('click', function(){ state.flipped = !state.flipped; renderAll(); });
+    root.appendChild(wrap);
+
+    if (state.flipped){
+      var row = el('<div class="answer-row"></div>');
+      var again = el('<button class="btn btn-danger">Nochmal</button>');
+      var know = el('<button class="btn btn-primary">Kenn ich</button>');
+      again.addEventListener('click', function(e){ e.stopPropagation(); answerCard(false); });
+      know.addEventListener('click', function(e){ e.stopPropagation(); answerCard(true); });
+      row.appendChild(again); row.appendChild(know);
+      root.appendChild(row);
+    }
+  }
+
+  function emptyState(title, text){
+    var wrap = el('<div class="empty-state"></div>');
+    wrap.innerHTML =
+      '<div class="glyph">' + ICONS.cards + '</div>' +
+      '<p><strong style="color:var(--white);display:block;margin-bottom:4px;">' + escapeHtml(title) + '</strong>' + escapeHtml(text) + '</p>';
+    var actions = el('<div class="empty-actions"></div>');
+    var addBtn = el('<button class="btn btn-primary btn-sm">Karte hinzufügen</button>');
+    var importBtn = el('<button class="btn btn-ghost btn-sm">Importieren</button>');
+    addBtn.addEventListener('click', function(){ openCardModal(null); });
+    importBtn.addEventListener('click', function(){ state.view='import'; renderAll(); });
+    actions.appendChild(importBtn); actions.appendChild(addBtn);
+    wrap.appendChild(actions);
+    return wrap;
+  }
+
+  function renderCards(root){
+    if (state.cards.length === 0){
+      root.appendChild(emptyState('Noch keine Vokabeln.', 'Lege deine erste Karte an oder importiere eine Liste.'));
+      return;
+    }
+    var search = el('<input class="search-input" placeholder="Suchen …" type="text">');
+    search.value = state.search;
+    search.addEventListener('input', function(){ state.search = search.value; renderCardsListOnly(); });
+    root.appendChild(search);
+
+    var listWrap = el('<div id="card-list"></div>');
+    root.appendChild(listWrap);
+    fillCardList(listWrap);
+  }
+
+  function renderCardsListOnly(){
+    var listWrap = document.getElementById('card-list');
+    if (listWrap) fillCardList(listWrap);
+  }
+
+  function fillCardList(listWrap){
+    listWrap.innerHTML = '';
+    var q = state.search.trim().toLowerCase();
+    var items = state.cards.filter(function(c){
+      if (!q) return true;
+      return c.front.toLowerCase().indexOf(q) > -1 || c.back.toLowerCase().indexOf(q) > -1;
+    }).sort(function(a,b){ return b.createdAt - a.createdAt; });
+
+    listWrap.appendChild(el('<div class="count-line">' + items.length + ' Karte' + (items.length===1?'':'n') + '</div>'));
+
+    items.forEach(function(card){
+      if (state.confirmDeleteId === card.id){
+        var crow = el('<div class="confirm-row"></div>');
+        crow.innerHTML = '<span>„' + escapeHtml(card.front) + '“ wirklich löschen?</span>';
+        var yes = el('<button class="btn btn-danger btn-sm">Löschen</button>');
+        var no = el('<button class="btn btn-outline btn-sm">Abbrechen</button>');
+        yes.addEventListener('click', function(){ deleteCard(card.id); state.confirmDeleteId=null; renderAll(); });
+        no.addEventListener('click', function(){ state.confirmDeleteId=null; renderAll(); });
+        crow.appendChild(no); crow.appendChild(yes);
+        listWrap.appendChild(crow);
+        return;
+      }
+      var row = el('<div class="card-row"></div>');
+      var dot = el('<span class="dot"></span>');
+      dot.style.background = BOX_COLORS[card.box-1];
+      var txt = el('<div class="txt"></div>');
+      txt.innerHTML = '<div class="front">' + escapeHtml(card.front) + '</div><div class="back">' + escapeHtml(card.back) + '</div>';
+      var actions = el('<div class="actions"></div>');
+      var editBtn = el('<button class="row-btn"></button>'); editBtn.innerHTML = ICONS.edit;
+      var delBtn = el('<button class="row-btn danger"></button>'); delBtn.innerHTML = ICONS.trash;
+      editBtn.addEventListener('click', function(){ openCardModal(card.id); });
+      delBtn.addEventListener('click', function(){ state.confirmDeleteId = card.id; renderAll(); });
+      actions.appendChild(editBtn); actions.appendChild(delBtn);
+      row.appendChild(dot); row.appendChild(txt); row.appendChild(actions);
+      row.addEventListener('click', function(e){
+        if (e.target.closest('.actions')) return;
+        openCardModal(card.id);
+      });
+      listWrap.appendChild(row);
+    });
+  }
+
+  function renderImport(root){
+    root.appendChild(el('<h2 class="view-title">Vokabeln importieren</h2>'));
+    var ta = el('<textarea class="import-textarea" placeholder="Hund - dog\nKatze - cat\nBrot: bread"></textarea>');
+    root.appendChild(ta);
+
+    var btn = el('<button class="btn btn-primary btn-block" style="margin-top:12px;">Text prüfen</button>');
+    btn.addEventListener('click', function(){
+      var result = parseImportText(ta.value);
+      if (result.pairs.length === 0){
+        showToast('Keine passenden Zeilen gefunden.');
+        return;
+      }
+      state.modal = { type:'importPreview', pairs: result.pairs, skipped: result.skipped };
+      renderAll();
+    });
+    root.appendChild(btn);
+
+    var hint = el('<div class="hint-box"></div>');
+    hint.innerHTML =
+      '<b>So funktioniert’s:</b> Kopiere deine Vokabelliste aus Google Notizen (eine Zeile pro Vokabel) und füge sie oben ein. ' +
+      'Erkannt werden Trennzeichen wie <b>„Wort - Übersetzung“</b>, <b>„Wort: Übersetzung“</b>, ein Komma oder ein Tabulator. ' +
+      'Danach kannst du die erkannten Paare vor dem Import noch prüfen.';
+    root.appendChild(hint);
+
+    root.appendChild(el('<h2 class="view-title" style="margin-top:26px;">Cloud-Synchronisierung</h2>'));
+    var urlField = el('<input class="search-input" type="url" placeholder="https://…">');
+    urlField.value = state.settings.syncUrl || '';
+    urlField.addEventListener('change', function(){
+      state.settings.syncUrl = urlField.value.trim();
+      saveSettings();
+    });
+    root.appendChild(urlField);
+
+    var syncBtn = el('<button class="btn btn-primary btn-block"></button>');
+    syncBtn.textContent = state.syncing ? 'Synchronisiere …' : 'Jetzt synchronisieren';
+    syncBtn.disabled = state.syncing;
+    syncBtn.addEventListener('click', function(){
+      state.settings.syncUrl = urlField.value.trim();
+      saveSettings();
+      syncFromUrl();
+    });
+    root.appendChild(syncBtn);
+
+    if (state.settings.lastSync){
+      var d = new Date(state.settings.lastSync);
+      var stamp = el('<div class="skip-note"></div>');
+      stamp.textContent = 'Zuletzt synchronisiert: ' + pad(d.getDate()) + '.' + pad(d.getMonth()+1) + '. um ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ' Uhr';
+      root.appendChild(stamp);
+    }
+
+    var syncHint = el('<div class="hint-box"></div>');
+    syncHint.innerHTML =
+      '<b>Woher bekomme ich so eine Adresse?</b> Am zuverlässigsten: Lege im selben GitHub-Repository eine Datei an (z. B. <b>vokabeln.txt</b>, eine Vokabel pro Zeile wie beim Einfügen oben), öffne sie auf GitHub, klick auf <b>Raw</b> und trage die angezeigte Adresse hier ein. ' +
+      'Alternativ: Google-Sheet mit zwei Spalten (Begriff, Übersetzung, ohne Kopfzeile), dann <b>Datei → Freigeben → Im Web veröffentlichen → CSV</b> und den Link hier eintragen – funktioniert meist, kann bei Google aber gelegentlich zicken. ' +
+      'Neue Zeilen werden ergänzt, geänderte Übersetzungen aktualisiert – dein Lernfortschritt bleibt dabei erhalten. Entfernte Zeilen löscht die App nicht automatisch.';
+    root.appendChild(syncHint);
+  }
+
+  function renderOverview(root){
+    var today = todayISO();
+    var total = state.cards.length;
+    var due = state.cards.filter(function(c){ return c.due <= today; }).length;
+    var learned5 = state.cards.filter(function(c){ return c.box === 5; }).length;
+
+    var grid = el('<div class="stat-grid"></div>');
+    grid.innerHTML =
+      '<div class="stat-card"><div class="num">'+total+'</div><div class="lbl">Karten</div></div>' +
+      '<div class="stat-card"><div class="num">'+due+'</div><div class="lbl">heute fällig</div></div>' +
+      '<div class="stat-card"><div class="num">'+learned5+'</div><div class="lbl">sicher gelernt</div></div>';
+    root.appendChild(grid);
+
+    root.appendChild(el('<h2 class="view-title">Karteikasten</h2>'));
+
+    var intervalLabels = ['täglich','alle 2 Tage','alle 4 Tage','alle 8 Tage','alle 16 Tage'];
+    for (var b=1; b<=5; b++){
+      var boxCards = state.cards.filter(function(c){ return c.box === b; });
+      var boxDue = boxCards.filter(function(c){ return c.due <= today; }).length;
+      var row = el('<div class="box-row"></div>');
+      var stack = el('<div class="box-stack"></div>');
+      var layers = Math.min(3, Math.max(1, Math.ceil(boxCards.length / Math.max(1,total) * 3) || (boxCards.length>0?1:0)));
+      for (var l=0; l<Math.max(layers, boxCards.length>0?1:1); l++){
+        var layer = document.createElement('i');
+        layer.style.top = (8 - l*4) + 'px';
+        layer.style.background = BOX_COLORS[b-1];
+        layer.style.opacity = (1 - l*0.22).toString();
+        stack.appendChild(layer);
+        if (l>=2) break;
+      }
+      var info = el('<div class="box-info"></div>');
+      info.innerHTML = '<div class="name">Kasten ' + b + '</div><div class="interval">' + intervalLabels[b-1] + '</div>';
+      var count = el('<div class="box-count' + (boxDue>0?' due':'') + '"></div>');
+      count.textContent = boxCards.length;
+      row.appendChild(stack); row.appendChild(info); row.appendChild(count);
+      root.appendChild(row);
+    }
+
+    root.appendChild(el('<h2 class="view-title">Daten sichern</h2>'));
+    var hint = el('<div class="hint-box">Deine Vokabeln liegen nur auf diesem Gerät in diesem Browser. Lade regelmäßig eine Sicherung herunter, damit nichts verloren geht.</div>');
+    root.appendChild(hint);
+    var backupRow = el('<div class="backup-row"></div>');
+    var exportBtn = el('<button class="btn btn-ghost">Exportieren</button>');
+    var importBtn = el('<button class="btn btn-outline">Importieren</button>');
+    exportBtn.addEventListener('click', exportBackup);
+    importBtn.addEventListener('click', function(){ document.getElementById('backup-file-input').click(); });
+    backupRow.appendChild(exportBtn); backupRow.appendChild(importBtn);
+    root.appendChild(backupRow);
+
+    root.appendChild(el('<h2 class="view-title" style="margin-top:26px;">Google Sheets Backup</h2>'));
+    var sheetsHint = el('<div class="hint-box">Speichert alle Karten inklusive Kastenstand direkt in einer eigenen Google-Tabelle – über ein kleines Google Apps Script (Einrichtung siehe README). So verlierst du nichts und kannst auch von einem anderen Gerät aus weiterlernen.</div>');
+    root.appendChild(sheetsHint);
+
+    var sheetsUrlField = el('<input class="search-input" type="url" placeholder="Web-App-Adresse (…/exec)">');
+    sheetsUrlField.value = state.settings.sheetsUrl || '';
+    sheetsUrlField.addEventListener('change', function(){ state.settings.sheetsUrl = sheetsUrlField.value.trim(); saveSettings(); });
+    root.appendChild(sheetsUrlField);
+
+    var sheetsTokenField = el('<input class="search-input" type="text" placeholder="Geheimer Code (falls im Script gesetzt)">');
+    sheetsTokenField.value = state.settings.sheetsToken || '';
+    sheetsTokenField.addEventListener('change', function(){ state.settings.sheetsToken = sheetsTokenField.value.trim(); saveSettings(); });
+    root.appendChild(sheetsTokenField);
+
+    var sheetsRow = el('<div class="backup-row" style="margin-top:10px;"></div>');
+    var pushBtn = el('<button class="btn btn-primary"></button>');
+    pushBtn.textContent = state.sheetsBusy ? '…' : 'In Cloud sichern';
+    pushBtn.disabled = state.sheetsBusy;
+    var pullBtn = el('<button class="btn btn-outline"></button>');
+    pullBtn.textContent = state.sheetsBusy ? '…' : 'Aus Cloud laden';
+    pullBtn.disabled = state.sheetsBusy;
+    pushBtn.addEventListener('click', function(){
+      state.settings.sheetsUrl = sheetsUrlField.value.trim();
+      state.settings.sheetsToken = sheetsTokenField.value.trim();
+      saveSettings();
+      sheetsPush();
+    });
+    pullBtn.addEventListener('click', function(){
+      state.settings.sheetsUrl = sheetsUrlField.value.trim();
+      state.settings.sheetsToken = sheetsTokenField.value.trim();
+      saveSettings();
+      state.modal = { type: 'confirmSheetsPull' };
+      renderAll();
+    });
+    sheetsRow.appendChild(pushBtn); sheetsRow.appendChild(pullBtn);
+    root.appendChild(sheetsRow);
+
+    if (state.settings.lastSheetsSync){
+      var sd = new Date(state.settings.lastSheetsSync);
+      var sstamp = el('<div class="skip-note"></div>');
+      sstamp.textContent = 'Zuletzt mit Google Sheets abgeglichen: ' + pad(sd.getDate()) + '.' + pad(sd.getMonth()+1) + '. um ' + pad(sd.getHours()) + ':' + pad(sd.getMinutes()) + ' Uhr';
+      root.appendChild(sstamp);
+    }
+  }
+
+  /* ---------- modal ---------- */
+  function openCardModal(id){
+    state.modal = { type:'card', id: id };
+    renderAll();
+  }
+
+  function renderModal(){
+    var mr = document.getElementById('modal-root');
+    mr.innerHTML = '';
+    if (!state.modal) return;
+
+    var overlay = el('<div class="modal-overlay"></div>');
+    overlay.addEventListener('click', function(e){ if (e.target === overlay) closeModal(); });
+    var sheet = el('<div class="modal-sheet"></div>');
+    overlay.appendChild(sheet);
+
+    if (state.modal.type === 'card') renderCardModal(sheet, state.modal.id);
+    else if (state.modal.type === 'settings') renderSettingsModal(sheet);
+    else if (state.modal.type === 'importPreview') renderImportPreviewModal(sheet, state.modal.pairs, state.modal.skipped);
+    else if (state.modal.type === 'confirmSheetsPull') renderConfirmSheetsPullModal(sheet);
+
+    mr.appendChild(overlay);
+  }
+  function closeModal(){ state.modal = null; renderAll(); }
+
+  function renderCardModal(sheet, id){
+    var editing = id ? getCard(id) : null;
+    sheet.innerHTML = '<h3>' + (editing ? 'Karte bearbeiten' : 'Neue Karte') + '</h3>';
+
+    var fFront = fieldBlock(state.settings.frontLabel, editing ? editing.front : '');
+    var fBack = fieldBlock(state.settings.backLabel, editing ? editing.back : '');
+    var fNote = document.createElement('div');
+    fNote.className = 'field';
+    fNote.innerHTML = '<label>Notiz (optional)</label><textarea>' + (editing ? escapeHtml(editing.note||'') : '') + '</textarea>';
+
+    sheet.appendChild(fFront.wrap);
+    sheet.appendChild(fBack.wrap);
+    sheet.appendChild(fNote);
+
+    var actions = el('<div class="modal-actions"></div>');
+    var cancel = el('<button class="btn btn-outline">Abbrechen</button>');
+    var save = el('<button class="btn btn-primary">Speichern</button>');
+    cancel.addEventListener('click', closeModal);
+    save.addEventListener('click', function(){
+      var front = fFront.input.value.trim();
+      var back = fBack.input.value.trim();
+      var note = fNote.querySelector('textarea').value.trim();
+      if (!front || !back){ showToast('Bitte beide Felder ausfüllen.'); return; }
+      if (editing) updateCard(editing.id, { front: front, back: back, note: note });
+      else addCard(front, back, note);
+      closeModal();
+      showToast(editing ? 'Karte aktualisiert.' : 'Karte hinzugefügt.');
+    });
+    actions.appendChild(cancel); actions.appendChild(save);
+    sheet.appendChild(actions);
+
+    if (editing){
+      var del = el('<button class="btn btn-danger btn-block" style="margin-top:10px;">Karte löschen</button>');
+      del.addEventListener('click', function(){
+        deleteCard(editing.id);
+        closeModal();
+        showToast('Karte gelöscht.');
+      });
+      sheet.appendChild(del);
+    }
+  }
+
+  function fieldBlock(label, value){
+    var wrap = document.createElement('div');
+    wrap.className = 'field';
+    wrap.innerHTML = '<label>' + escapeHtml(label) + '</label>';
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.value = value || '';
+    wrap.appendChild(input);
+    return { wrap: wrap, input: input };
+  }
+
+  function renderSettingsModal(sheet){
+    sheet.innerHTML = '<h3>Einstellungen</h3>';
+    var fFront = fieldBlock('Bezeichnung Vorderseite', state.settings.frontLabel);
+    var fBack = fieldBlock('Bezeichnung Rückseite', state.settings.backLabel);
+    sheet.appendChild(fFront.wrap);
+    sheet.appendChild(fBack.wrap);
+
+    var dirField = document.createElement('div');
+    dirField.className = 'field';
+    dirField.innerHTML = '<label>Abfragerichtung</label>';
+    var seg = el('<div class="seg"></div>');
+    var opts = [
+      {v:'front-back', l:'Vorne → Hinten'},
+      {v:'back-front', l:'Hinten → Vorne'},
+      {v:'mixed', l:'Gemischt'}
+    ];
+    opts.forEach(function(o){
+      var b = document.createElement('button');
+      b.textContent = o.l;
+      if (state.settings.direction === o.v) b.className = 'active';
+      b.addEventListener('click', function(){
+        Array.prototype.forEach.call(seg.children, function(c){ c.className=''; });
+        b.className = 'active';
+        seg.dataset.value = o.v;
+      });
+      seg.appendChild(b);
+    });
+    seg.dataset.value = state.settings.direction;
+    dirField.appendChild(seg);
+    sheet.appendChild(dirField);
+
+    var actions = el('<div class="modal-actions"></div>');
+    var cancel = el('<button class="btn btn-outline">Abbrechen</button>');
+    var save = el('<button class="btn btn-primary">Speichern</button>');
+    cancel.addEventListener('click', closeModal);
+    save.addEventListener('click', function(){
+      state.settings.frontLabel = fFront.input.value.trim() || 'Begriff';
+      state.settings.backLabel = fBack.input.value.trim() || 'Übersetzung';
+      state.settings.direction = seg.dataset.value;
+      saveSettings();
+      closeModal();
+      showToast('Einstellungen gespeichert.');
+    });
+    actions.appendChild(cancel); actions.appendChild(save);
+    sheet.appendChild(actions);
+  }
+
+  function renderConfirmSheetsPullModal(sheet){
+    sheet.innerHTML = '<h3>Lokale Karten ersetzen?</h3>' +
+      '<p style="font-size:13px;color:var(--white-dim);line-height:1.5;margin:0 0 16px;">' +
+      'Alle Karten auf diesem Gerät werden durch den Stand aus Google Sheets ersetzt. Nicht dorthin gesicherte lokale Änderungen gehen dabei verloren.</p>';
+    var actions = el('<div class="modal-actions"></div>');
+    var cancel = el('<button class="btn btn-outline">Abbrechen</button>');
+    var confirm = el('<button class="btn btn-danger">Ersetzen</button>');
+    cancel.addEventListener('click', closeModal);
+    confirm.addEventListener('click', function(){ closeModal(); sheetsPull(); });
+    actions.appendChild(cancel); actions.appendChild(confirm);
+    sheet.appendChild(actions);
+  }
+
+  function renderImportPreviewModal(sheet, pairs, skipped){
+    sheet.innerHTML = '<h3>' + pairs.length + ' Karte' + (pairs.length===1?'':'n') + ' gefunden</h3>';
+    var list = document.createElement('div');
+    pairs.forEach(function(p, idx){
+      var row = el('<div class="preview-row"></div>');
+      row.innerHTML =
+        '<span class="p-front">' + escapeHtml(p.front) + '</span>' +
+        '<span class="arrow">→</span>' +
+        '<span class="p-back">' + escapeHtml(p.back) + '</span>';
+      var rm = el('<button></button>'); rm.innerHTML = ICONS.close;
+      rm.addEventListener('click', function(){
+        pairs.splice(idx,1);
+        state.modal.pairs = pairs;
+        renderAll();
+      });
+      row.appendChild(rm);
+      list.appendChild(row);
+    });
+    sheet.appendChild(list);
+    if (skipped > 0){
+      sheet.appendChild(el('<div class="skip-note">' + skipped + ' Zeile' + (skipped===1?'':'n') + ' konnte' + (skipped===1?'':'n') + ' nicht erkannt werden.</div>'));
+    }
+    var actions = el('<div class="modal-actions"></div>');
+    var cancel = el('<button class="btn btn-outline">Abbrechen</button>');
+    var confirm = el('<button class="btn btn-primary">' + pairs.length + ' importieren</button>');
+    cancel.addEventListener('click', closeModal);
+    confirm.addEventListener('click', function(){
+      pairs.forEach(function(p){ addCard(p.front, p.back, ''); });
+      closeModal();
+      showToast(pairs.length + ' Karte' + (pairs.length===1?'':'n') + ' importiert.');
+      state.view = 'cards';
+      renderAll();
+    });
+    actions.appendChild(cancel); actions.appendChild(confirm);
+    sheet.appendChild(actions);
+  }
+
+  /* ---------- init ---------- */
+  document.getElementById('settings-btn').addEventListener('click', function(){
+    state.modal = { type:'settings' };
+    renderAll();
+  });
+  document.getElementById('fab-add').addEventListener('click', function(){ openCardModal(null); });
+  document.getElementById('backup-file-input').addEventListener('change', function(e){
+    var file = e.target.files && e.target.files[0];
+    if (file) importBackupFile(file);
+    e.target.value = '';
+  });
+
+  renderAll();
+  loadData();
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('service-worker.js').catch(function(){ /* offline-Unterstützung optional */ });
+    });
+  }
+})();
+</script>
+</body>
+</html>
