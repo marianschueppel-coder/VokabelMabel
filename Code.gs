@@ -19,7 +19,7 @@
  */
 
 var SHEET_NAME = 'Karten';
-var TOKEN = 'HIER-EIGENEN-CODE-EINTRAGEN';
+var TOKEN = 'vokabeln';
 var COLUMNS = ['id', 'front', 'back', 'note', 'box', 'due', 'createdAt', 'updatedAt', 'favorite'];
 // Neue Zeile manuell im Sheet eintragen: nur Spalte B (front/Begriff) und
 // C (back/Übersetzung) ausfüllen. id, box, due etc. ergänzt das Script bzw. die App automatisch.
