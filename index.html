@@ -322,8 +322,7 @@
     loaded: false,
     view: 'learn',
     cards: [],
-    settings: { frontLabel: 'Begriff', backLabel: 'Übersetzung', direction: 'front-back', syncUrl: '', lastSync: null, sheetsUrl: '', sheetsToken: '', lastSheetsSync: null },
-    syncing: false,
+    settings: { frontLabel: 'Begriff', backLabel: 'Übersetzung', direction: 'front-back', sheetsUrl: '', sheetsToken: '', lastSheetsSync: null },
     sheetsBusy: false,
     studyQueue: [],
     queuePos: 0,
@@ -459,37 +458,6 @@
   }
 
   /* ---------- Cloud-Sync: Liste von einer öffentlichen URL abrufen ---------- */
-  function syncFromUrl(){
-    var url = (state.settings.syncUrl || '').trim();
-    if (!url){ showToast('Bitte zuerst eine Adresse eintragen.'); return; }
-    if (state.syncing) return;
-    state.syncing = true;
-    renderAll();
-    fetch(url, { cache: 'no-store' })
-      .then(function(res){
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        return res.text();
-      })
-      .then(function(text){
-        var result = parseImportText(text);
-        if (result.pairs.length === 0){
-          showToast('Keine Vokabeln in der Quelle gefunden.');
-          return;
-        }
-        var stats = mergeImportedPairs(result.pairs);
-        state.settings.lastSync = new Date().toISOString();
-        saveSettings();
-        showToast(stats.added + ' neu, ' + stats.updated + ' aktualisiert.');
-      })
-      .catch(function(){
-        showToast('Synchronisierung fehlgeschlagen. Adresse & Freigabe prüfen.');
-      })
-      .finally(function(){
-        state.syncing = false;
-        renderAll();
-      });
-  }
-
   /* ---------- Google Sheets Backup (Web-App-Anbindung, inkl. Kastenstand) ---------- */
   function sheetsPush(){
     var url = (state.settings.sheetsUrl || '').trim();
@@ -907,41 +875,10 @@
     hint.innerHTML =
       '<b>So funktioniert’s:</b> Kopiere deine Vokabelliste aus Google Notizen (eine Zeile pro Vokabel) und füge sie oben ein. ' +
       'Erkannt werden Trennzeichen wie <b>„Wort - Übersetzung“</b>, <b>„Wort: Übersetzung“</b>, ein Komma oder ein Tabulator. ' +
-      'Danach kannst du die erkannten Paare vor dem Import noch prüfen.';
+      'Danach kannst du die erkannten Paare vor dem Import noch prüfen. ' +
+      'Begriffe, die es schon gibt, werden nur aktualisiert – dein Lernfortschritt bleibt erhalten. ' +
+      'Für eine laufend gepflegte Liste eignet sich das Google Sheets Backup unter Übersicht besser als wiederholtes Einfügen hier.';
     root.appendChild(hint);
-
-    root.appendChild(el('<h2 class="view-title" style="margin-top:26px;">Cloud-Synchronisierung</h2>'));
-    var urlField = el('<input class="search-input" type="url" placeholder="https://…">');
-    urlField.value = state.settings.syncUrl || '';
-    urlField.addEventListener('change', function(){
-      state.settings.syncUrl = urlField.value.trim();
-      saveSettings();
-    });
-    root.appendChild(urlField);
-
-    var syncBtn = el('<button class="btn btn-primary btn-block"></button>');
-    syncBtn.textContent = state.syncing ? 'Synchronisiere …' : 'Jetzt synchronisieren';
-    syncBtn.disabled = state.syncing;
-    syncBtn.addEventListener('click', function(){
-      state.settings.syncUrl = urlField.value.trim();
-      saveSettings();
-      syncFromUrl();
-    });
-    root.appendChild(syncBtn);
-
-    if (state.settings.lastSync){
-      var d = new Date(state.settings.lastSync);
-      var stamp = el('<div class="skip-note"></div>');
-      stamp.textContent = 'Zuletzt synchronisiert: ' + pad(d.getDate()) + '.' + pad(d.getMonth()+1) + '. um ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ' Uhr';
-      root.appendChild(stamp);
-    }
-
-    var syncHint = el('<div class="hint-box"></div>');
-    syncHint.innerHTML =
-      '<b>Woher bekomme ich so eine Adresse?</b> Am zuverlässigsten: Lege im selben GitHub-Repository eine Datei an (z. B. <b>vokabeln.txt</b>, eine Vokabel pro Zeile wie beim Einfügen oben), öffne sie auf GitHub, klick auf <b>Raw</b> und trage die angezeigte Adresse hier ein. ' +
-      'Alternativ: Google-Sheet mit zwei Spalten (Begriff, Übersetzung, ohne Kopfzeile), dann <b>Datei → Freigeben → Im Web veröffentlichen → CSV</b> und den Link hier eintragen – funktioniert meist, kann bei Google aber gelegentlich zicken. ' +
-      'Neue Zeilen werden ergänzt, geänderte Übersetzungen aktualisiert – dein Lernfortschritt bleibt dabei erhalten. Entfernte Zeilen löscht die App nicht automatisch.';
-    root.appendChild(syncHint);
   }
 
   function renderOverview(root){

@@ -48,23 +48,7 @@ Hund - dog
 Katze: cat
 Brot, bread
 ```
-
-## Cloud-Synchronisierung (optional)
-
-Da GitHub Pages nur Dateien ausliefert (kein eigener Server, keine Datenbank), gibt es keine "Live"-Verbindung – aber die App kann sich auf Knopfdruck eine Liste von einer öffentlichen Adresse holen. Im Reiter **Import** gibt es dafür ein Adressfeld + **Jetzt synchronisieren**. Neue Zeilen werden ergänzt, geänderte Übersetzungen aktualisiert, dein Lernfortschritt bleibt erhalten. Zwei Wege, so eine Adresse zu bekommen:
-
-**Variante A – Textdatei im GitHub-Repo (empfohlen, zuverlässig)**
-1. Im selben Repository **Add file** → **Create new file** → Name z. B. `vokabeln.txt`.
-2. Inhalt: eine Vokabel pro Zeile, gleiches Format wie beim manuellen Import (`Hund - dog`).
-3. Datei speichern (**Commit new file**), dann öffnen und oben rechts auf **Raw** klicken.
-4. Die Adresse aus der Browserzeile kopieren (beginnt mit `raw.githubusercontent.com`) und in der App einfügen.
-5. Wenn du die Liste änderst: Datei auf GitHub bearbeiten (auch über die GitHub-App fürs iPhone möglich), speichern, in der App auf **Jetzt synchronisieren** tippen.
-
-**Variante B – Google Sheet als CSV**
-1. Google Sheet mit zwei Spalten anlegen: Spalte A = Begriff, Spalte B = Übersetzung, **ohne Kopfzeile**.
-2. **Datei → Freigeben → Im Web veröffentlichen**, Format **CSV**, veröffentlichen.
-3. Den erzeugten Link kopieren und in der App eintragen.
-4. Kann in Einzelfällen an Googles Cross-Origin-Beschränkungen scheitern (siehe Fehlermeldung in der App) – funktioniert dann meist Variante A zuverlässiger.
+Begriffe, die es schon gibt, werden dabei nur aktualisiert, nicht dupliziert – dein Lernfortschritt bleibt erhalten. Für eine laufend gepflegte Liste eignet sich das Google Sheets Backup weiter unten besser als wiederholtes Einfügen hier.
 
 ## Backup
 
