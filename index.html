@@ -59,6 +59,8 @@
   }
   .icon-btn:active{background:var(--line); color:var(--white);}
   .icon-btn svg{width:20px; height:20px;}
+  .learn-delete-btn{padding:5px; color:var(--white-faint);}
+  .learn-delete-btn svg{width:16px; height:16px;}
   main#view{
     flex:1; padding:6px 20px calc(100px + env(safe-area-inset-bottom,0px));
     overflow-y:auto; -webkit-overflow-scrolling:touch;
@@ -614,8 +616,12 @@
   }
   function deleteCard(id){
     state.cards = state.cards.filter(function(c){ return c.id !== id; });
+    var qIdx = state.studyQueue.indexOf(id);
+    if (qIdx > -1){
+      state.studyQueue.splice(qIdx, 1);
+      if (qIdx < state.queuePos) state.queuePos--;
+    }
     saveCards();
-    buildStudyQueue();
   }
 
   /* ---------- import parsing ---------- */
@@ -716,13 +722,43 @@
     var aLabel = askFront ? state.settings.backLabel : state.settings.frontLabel;
 
     var prog = el('<div class="study-progress"></div>');
-    prog.innerHTML =
-      '<span>' + (state.queuePos+1) + ' von ' + state.studyQueue.length + '</span>' +
-      '<span style="display:flex;align-items:center;gap:7px;">' +
-        (card.favorite ? '<span class="fav-pill">' + ICONS.starFilled + '</span>' : '') +
-        '<span class="box-pill">Kasten ' + card.box + '</span>' +
-      '</span>';
+    var leftSpan = document.createElement('span');
+    leftSpan.textContent = (state.queuePos+1) + ' von ' + state.studyQueue.length;
+    var rightWrap = document.createElement('span');
+    rightWrap.style.display = 'flex'; rightWrap.style.alignItems = 'center'; rightWrap.style.gap = '7px';
+    if (card.favorite){
+      var favSpan = document.createElement('span');
+      favSpan.className = 'fav-pill';
+      favSpan.innerHTML = ICONS.starFilled;
+      rightWrap.appendChild(favSpan);
+    }
+    var boxSpan = document.createElement('span');
+    boxSpan.className = 'box-pill';
+    boxSpan.textContent = 'Kasten ' + card.box;
+    rightWrap.appendChild(boxSpan);
+    var delTrigger = el('<button class="icon-btn learn-delete-btn" aria-label="Karte löschen"></button>');
+    delTrigger.innerHTML = ICONS.trash;
+    delTrigger.addEventListener('click', function(){ state.confirmDeleteId = card.id; renderAll(); });
+    rightWrap.appendChild(delTrigger);
+    prog.appendChild(leftSpan); prog.appendChild(rightWrap);
     root.appendChild(prog);
+
+    if (state.confirmDeleteId === card.id){
+      var confirmWrap = el('<div class="confirm-row" style="margin:-4px 0 14px; border-bottom:none; background:var(--bg-softer); border-radius:10px; padding:10px 12px;"></div>');
+      confirmWrap.innerHTML = '<span>„' + escapeHtml(card.front) + '“ wirklich löschen?</span>';
+      var yesBtn = el('<button class="btn btn-danger btn-sm">Löschen</button>');
+      var noBtn = el('<button class="btn btn-outline btn-sm">Abbrechen</button>');
+      yesBtn.addEventListener('click', function(){
+        deleteCard(card.id);
+        state.confirmDeleteId = null;
+        state.flipped = false;
+        renderAll();
+      });
+      noBtn.addEventListener('click', function(){ state.confirmDeleteId = null; renderAll(); });
+      confirmWrap.appendChild(noBtn); confirmWrap.appendChild(yesBtn);
+      root.appendChild(confirmWrap);
+      return;
+    }
 
     var wrap = el('<div class="flashcard' + (state.flipped?' flipped':'') + '"></div>');
     var inner = el('<div class="flashcard-inner"></div>');
