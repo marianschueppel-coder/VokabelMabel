@@ -237,6 +237,18 @@
     border-radius:10px; padding:11px 13px; font-size:14.5px;
   }
   .field textarea{min-height:70px; resize:vertical;}
+  .field-label-row{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;}
+  .field-label-row label{margin:0;}
+  .translate-btn{
+    background:var(--bg-softer); border:1px solid var(--line); color:var(--gold-soft);
+    padding:4px 8px; border-radius:7px; display:flex; align-items:center; flex:none;
+  }
+  .translate-btn svg{width:15px; height:15px; display:block;}
+  .translate-btn:disabled{opacity:.4;}
+  .lang-select{
+    width:100%; background:var(--bg-softer); border:1px solid var(--line); color:var(--white);
+    border-radius:10px; padding:11px 13px; font-size:13.5px;
+  }
   .modal-actions{display:flex; gap:10px; margin-top:6px;}
   .modal-actions .btn{flex:1;}
   .seg{display:flex; background:var(--bg-softer); border-radius:10px; padding:3px; gap:3px;}
@@ -310,8 +322,22 @@
     edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>',
     close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>',
     starOutline: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 3l2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.2-5.4 3.2 1.3-6-4.6-4.1 6.1-.6z"/></svg>',
-    starFilled: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><path d="M12 3l2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.2-5.4 3.2 1.3-6-4.6-4.1 6.1-.6z"/></svg>'
+    starFilled: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><path d="M12 3l2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.2-5.4 3.2 1.3-6-4.6-4.1 6.1-.6z"/></svg>',
+    translate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M9.5 4.5L13.5 7 9.5 9.5"/><path d="M20 17H10M14.5 14.5L10.5 17 14.5 19.5"/></svg>'
   };
+
+  var LANGUAGES = [
+    { code: 'de', label: 'Deutsch' },
+    { code: 'en', label: 'Englisch' },
+    { code: 'es', label: 'Spanisch' },
+    { code: 'fr', label: 'Französisch' },
+    { code: 'it', label: 'Italienisch' },
+    { code: 'nl', label: 'Niederländisch' },
+    { code: 'pt', label: 'Portugiesisch' },
+    { code: 'pl', label: 'Polnisch' },
+    { code: 'tr', label: 'Türkisch' },
+    { code: 'ru', label: 'Russisch' }
+  ];
 
   var LEITNER_INTERVALS = [1, 2, 4, 8, 16]; // Tage pro Kasten 1..5
   var BOX_COLORS = ['#B23A2E', '#C06A3D', '#B08D3D', '#7C9A5C', '#4C7A6B'];
@@ -322,7 +348,7 @@
     loaded: false,
     view: 'learn',
     cards: [],
-    settings: { frontLabel: 'Begriff', backLabel: 'Übersetzung', direction: 'front-back', sheetsUrl: '', sheetsToken: '', lastSheetsSync: null },
+    settings: { frontLabel: 'Begriff', backLabel: 'Übersetzung', direction: 'front-back', frontLang: 'en', backLang: 'de', sheetsUrl: '', sheetsToken: '', lastSheetsSync: null },
     sheetsBusy: false,
     studyQueue: [],
     queuePos: 0,
@@ -590,6 +616,21 @@
       if (qIdx < state.queuePos) state.queuePos--;
     }
     saveCards();
+  }
+
+  /* ---------- Automatische Übersetzung (MyMemory, kostenlos, ohne eigenen Key) ---------- */
+  function translateText(text, sourceLang, targetLang){
+    var url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text) +
+      '&langpair=' + encodeURIComponent(sourceLang) + '|' + encodeURIComponent(targetLang);
+    return fetch(url).then(function(res){
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    }).then(function(data){
+      if (!data || !data.responseData || !data.responseData.translatedText){
+        throw new Error('no-translation');
+      }
+      return data.responseData.translatedText;
+    });
   }
 
   /* ---------- import parsing ---------- */
@@ -1004,8 +1045,50 @@
     var editing = id ? getCard(id) : null;
     sheet.innerHTML = '<h3>' + (editing ? 'Karte bearbeiten' : 'Neue Karte') + '</h3>';
 
-    var fFront = fieldBlock(state.settings.frontLabel, editing ? editing.front : '');
-    var fBack = fieldBlock(state.settings.backLabel, editing ? editing.back : '');
+    function buildTranslatableField(labelText){
+      var wrap = document.createElement('div');
+      wrap.className = 'field';
+      var headerRow = document.createElement('div');
+      headerRow.className = 'field-label-row';
+      var labelEl = document.createElement('label');
+      labelEl.textContent = labelText;
+      var transBtn = document.createElement('button');
+      transBtn.type = 'button';
+      transBtn.className = 'translate-btn';
+      transBtn.innerHTML = ICONS.translate;
+      transBtn.title = 'Aus dem anderen Feld übersetzen';
+      headerRow.appendChild(labelEl);
+      headerRow.appendChild(transBtn);
+      var input = document.createElement('input');
+      input.type = 'text';
+      wrap.appendChild(headerRow);
+      wrap.appendChild(input);
+      return { wrap: wrap, input: input, translateBtn: transBtn };
+    }
+
+    var fFront = buildTranslatableField(state.settings.frontLabel);
+    fFront.input.value = editing ? editing.front : '';
+    var fBack = buildTranslatableField(state.settings.backLabel);
+    fBack.input.value = editing ? editing.back : '';
+
+    fBack.translateBtn.addEventListener('click', function(){
+      var text = fFront.input.value.trim();
+      if (!text){ showToast('Bitte zuerst „' + state.settings.frontLabel + '“ ausfüllen.'); return; }
+      fBack.translateBtn.disabled = true;
+      translateText(text, state.settings.frontLang, state.settings.backLang)
+        .then(function(t){ fBack.input.value = t; })
+        .catch(function(){ showToast('Übersetzung fehlgeschlagen.'); })
+        .finally(function(){ fBack.translateBtn.disabled = false; });
+    });
+    fFront.translateBtn.addEventListener('click', function(){
+      var text = fBack.input.value.trim();
+      if (!text){ showToast('Bitte zuerst „' + state.settings.backLabel + '“ ausfüllen.'); return; }
+      fFront.translateBtn.disabled = true;
+      translateText(text, state.settings.backLang, state.settings.frontLang)
+        .then(function(t){ fFront.input.value = t; })
+        .catch(function(){ showToast('Übersetzung fehlgeschlagen.'); })
+        .finally(function(){ fFront.translateBtn.disabled = false; });
+    });
     var fNote = document.createElement('div');
     fNote.className = 'field';
     fNote.innerHTML = '<label>Notiz (optional)</label><textarea>' + (editing ? escapeHtml(editing.note||'') : '') + '</textarea>';
@@ -1075,6 +1158,37 @@
     sheet.appendChild(fFront.wrap);
     sheet.appendChild(fBack.wrap);
 
+    function langSelect(labelText, currentCode){
+      var wrap = document.createElement('div');
+      wrap.className = 'field';
+      var labelEl = document.createElement('label');
+      labelEl.textContent = labelText;
+      var select = document.createElement('select');
+      select.className = 'lang-select';
+      LANGUAGES.forEach(function(l){
+        var opt = document.createElement('option');
+        opt.value = l.code;
+        opt.textContent = l.label;
+        if (l.code === currentCode) opt.selected = true;
+        select.appendChild(opt);
+      });
+      wrap.appendChild(labelEl);
+      wrap.appendChild(select);
+      return { wrap: wrap, select: select };
+    }
+    var langRow = document.createElement('div');
+    langRow.style.display = 'flex';
+    langRow.style.gap = '10px';
+    var fFrontLang = langSelect('Sprache Vorderseite', state.settings.frontLang);
+    var fBackLang = langSelect('Sprache Rückseite', state.settings.backLang);
+    fFrontLang.wrap.style.flex = '1';
+    fBackLang.wrap.style.flex = '1';
+    langRow.appendChild(fFrontLang.wrap);
+    langRow.appendChild(fBackLang.wrap);
+    sheet.appendChild(langRow);
+    var langHint = el('<div class="skip-note" style="margin:-8px 0 4px;">Wird für den Übersetzen-Button beim Anlegen von Karten genutzt.</div>');
+    sheet.appendChild(langHint);
+
     var dirField = document.createElement('div');
     dirField.className = 'field';
     dirField.innerHTML = '<label>Abfragerichtung</label>';
@@ -1106,6 +1220,8 @@
     save.addEventListener('click', function(){
       state.settings.frontLabel = fFront.input.value.trim() || 'Begriff';
       state.settings.backLabel = fBack.input.value.trim() || 'Übersetzung';
+      state.settings.frontLang = fFrontLang.select.value;
+      state.settings.backLang = fBackLang.select.value;
       state.settings.direction = seg.dataset.value;
       saveSettings();
       closeModal();
